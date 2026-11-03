@@ -1,0 +1,445 @@
+<title>Simulador da Dívida Pública – Brasil</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Simulação da trajetória da dívida pública brasileira em 10 anos sob cenários de juros, inflação, crescimento, câmbio, resultado primário e composição da dívida.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<style>
+/* Layout: coluna única. Leitura no topo, controles, dois gráficos e notas metodológicas.
+   Mesma família visual do painel Regra de Taylor – Brasil. */
+:root{
+  --bg:#FFFFFF; --ink:#111214; --text:#3A3E44; --muted:#6E7278; --hair:#E4E6E8; --grid:#E9EBED;
+  --alta:#D8382C; --baixa:#1D5FA0; --proj:#B3741A; --ref:#8A8F96; --mark:#FFF6E8;
+  --c-juros:#D8382C; --c-cresc:#1D5FA0; --c-prim:#B3741A;
+  --f-display:Newsreader,Georgia,"Times New Roman",serif;
+  --f-body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121315; --ink:#F1F2F3; --text:#C9CCD0; --muted:#9298A0; --hair:#2B2E33; --grid:#24272B;
+  --alta:#F0645A; --baixa:#5C9BDB; --proj:#E3A548; --ref:#8C939B; --mark:#2A2416;
+  --c-juros:#F0645A; --c-cresc:#5C9BDB; --c-prim:#E3A548; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121315; --ink:#F1F2F3; --text:#C9CCD0; --muted:#9298A0; --hair:#2B2E33; --grid:#24272B;
+  --alta:#F0645A; --baixa:#5C9BDB; --proj:#E3A548; --ref:#8C939B; --mark:#2A2416;
+  --c-juros:#F0645A; --c-cresc:#5C9BDB; --c-prim:#E3A548; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.6;font-variant-numeric:tabular-nums}
+.wrap{max-width:1100px;margin:0 auto;padding-block:28px 80px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(30px,4.6vw,46px);line-height:1.05;letter-spacing:-.015em;margin:0 0 12px;text-wrap:balance}
+.standfirst{font-size:17px;color:var(--text);max-width:70ch;margin:0}
+.standfirst a,.notas a{color:inherit;text-decoration:underline;text-decoration-color:var(--muted);text-underline-offset:3px}
+.byline{font-size:12.5px;color:var(--muted);margin:16px 0 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.byline a.who{font-size:13px;font-weight:700;color:var(--bg);background:var(--ink);padding:5px 14px;border-radius:999px;text-decoration:none}
+
+.leitura{margin:30px 0 0;border-top:1px solid var(--ink);padding-top:16px}
+.ref{font-size:10.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 40px}
+.card{min-width:0;border-top:4px solid var(--alta);padding-top:12px}
+.card.fo{border-top-color:var(--baixa)} .card.neutro{border-top-color:var(--ink)}
+.card .cl{font-size:12.5px;color:var(--muted);margin:0}
+.card .cv{font-family:var(--f-display);font-weight:700;font-size:clamp(34px,5vw,48px);line-height:1.05;margin:4px 0 2px;color:var(--alta)}
+.card.fo .cv{color:var(--baixa)} .card.neutro .cv{color:var(--ink)}
+.card .cd{font-size:13px;color:var(--text);margin:0}
+.legcor{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--text);margin:14px 0 0}
+.legcor i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+
+.barra{display:flex;flex-wrap:wrap;gap:18px 36px;margin:28px 0 0;padding:16px 0 0;border-top:1px solid var(--hair)}
+.grupo{display:flex;flex-direction:column;gap:8px;min-width:0}
+.rot{font-size:10.5px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:7px}
+.seg button{font:inherit;font-size:12.5px;font-weight:500;padding:6px 13px;cursor:pointer;color:var(--text);background:var(--bg);border:1px solid var(--hair);border-radius:999px;white-space:nowrap}
+.seg button:hover{border-color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink);font-weight:600}
+.seg button:focus-visible,input[type=range]:focus-visible{outline:2px solid var(--alta);outline-offset:2px}
+
+.params{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px 36px;margin:18px 0 0}
+.param{min-width:0}
+.param label{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--text)}
+.param label b{color:var(--ink);font-weight:600;white-space:nowrap}
+.param input{width:100%;accent-color:var(--ink);margin:4px 0 0}
+.param small{display:block;font-size:11.5px;color:var(--muted);line-height:1.4}
+.secao{font-size:13px;font-weight:700;margin:22px 0 0;grid-column:1/-1}
+.nota{font-size:12px;color:var(--muted);margin:-8px 0 0;grid-column:1/-1}
+.compbar{grid-column:1/-1;display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--hair)}
+.compbar span{display:block;height:100%}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+
+figure{margin:34px 0 0}
+.figtit{font-size:15px;font-weight:700;margin:0 0 4px}
+.figsub{font-size:13px;color:var(--muted);margin:0 0 8px;max-width:84ch}
+.hud{font-size:12.5px;color:var(--muted);min-height:20px;margin:0 0 6px;display:flex;gap:14px;flex-wrap:wrap}
+.hud b{color:var(--ink);font-weight:600}
+.legenda{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--text);margin:8px 0 0}
+.legenda i{display:inline-block;width:18px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:6px}
+.legenda i.q{width:10px;height:10px;border:0;border-radius:2px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.eixo{font-size:11px;fill:var(--muted);font-family:var(--f-body)}
+.grade{stroke:var(--grid);stroke-width:1}
+.endlab{font-size:11.5px;font-weight:600;paint-order:stroke;stroke:var(--bg);stroke-width:3.5px}
+
+.notas{margin-top:60px;border-top:3px solid var(--ink);padding-top:24px}
+.notas h2{font-family:var(--f-display);font-size:24px;font-weight:700;margin:0 0 12px}
+.notas h3{font-size:14px;font-weight:600;margin:20px 0 4px}
+.notas p,.notas li{font-size:14px;color:var(--text);max-width:88ch}
+.notas p{margin:0 0 10px}
+.notas>div+div{margin-top:40px;padding-top:28px;border-top:1px solid var(--hair)}
+.eqrow{margin:14px 0;overflow-x:auto;max-width:88ch;color:var(--ink);font-size:17px}
+.eqrow math{font-family:"STIX Two Math","Cambria Math","Latin Modern Math",serif}
+.tab{overflow-x:auto;max-width:100%}
+.tab table{border-collapse:collapse;font-size:13px;min-width:520px}
+.tab th,.tab td{padding:6px 10px;border-bottom:1px solid var(--hair);text-align:right}
+.tab th:first-child,.tab td:first-child{text-align:left}
+.tab th{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.refb{font-size:12.5px;color:var(--muted);margin:0 0 6px;padding-left:22px;text-indent:-22px}
+.fonte{font-size:12px;color:var(--muted);margin-top:36px;padding-top:12px;border-top:1px solid var(--hair)}
+@media (max-width:520px){.cards{grid-template-columns:minmax(0,1fr)}.eixo{font-size:10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<h1>Simulador da Dívida Pública – Brasil</h1>
+<p class="standfirst">Este painel simula a trajetória da dívida pública brasileira nos próximos dez anos a partir da equação de acumulação da dívida, com a composição observada por indexador. É possível alterar juros, inflação, crescimento, câmbio, resultado primário e composição para construir cenários de ajuste fiscal. A metodologia detalhada está no <a href="https://github.com/davispeckr/Simulador-Divida-Publica-Brasil" target="_blank" rel="noopener">repositório do projeto no GitHub</a>.</p>
+<p class="byline"><a class="who" href="https://www.linkedin.com/in/davi-speck-ramos-a26079242" target="_blank" rel="noopener">Davi Speck Ramos</a><span id="atualizado"></span></p>
+
+<section class="leitura" aria-live="polite">
+  <p class="ref" id="refcen">—</p>
+  <div class="cards">
+    <div class="card" id="c1"><p class="cl" id="l1">Dívida em 2036</p><p class="cv" id="v1">—</p><p class="cd" id="d1"></p></div>
+    <div class="card neutro" id="c2"><p class="cl" id="l2">Primário que estabiliza a dívida</p><p class="cv" id="v2">—</p><p class="cd" id="d2"></p></div>
+  </div>
+  <p class="legcor"><span><i style="background:var(--alta)"></i>Dívida sobe no horizonte</span><span><i style="background:var(--baixa)"></i>Dívida cai no horizonte</span></p>
+</section>
+
+<div class="barra">
+  <div class="grupo"><span class="rot">Indicador</span><div class="seg" id="cInd"></div></div>
+  <div class="grupo"><span class="rot">Cenários prontos</span><div class="seg" id="cCen"></div></div>
+</div>
+
+<div class="params" id="params"></div>
+
+<figure>
+  <p class="figtit" id="t1">Dívida bruta do governo geral (% do PIB)</p>
+  <p class="figsub">Até o ano-base, dados observados do Banco Central. Depois, simulação com os parâmetros escolhidos. A linha cinza é a mediana do Focus para a dívida, como referência.</p>
+  <div class="hud" id="hud1"></div>
+  <svg id="g1" role="img" aria-label="Trajetória observada e simulada da dívida"></svg>
+  <div class="legenda"><span><i style="border-color:var(--ink)"></i>Observado</span><span><i style="border-color:var(--proj)"></i>Simulado</span><span><i style="border-color:var(--ref);border-top-style:dashed"></i>Mediana do Focus</span></div>
+</figure>
+
+<figure>
+  <p class="figtit">O que move a dívida bruta a cada ano (p.p. do PIB)</p>
+  <p class="figsub">Variação anual decomposta em juros nominais, crescimento do PIB nominal (que reduz a razão) e resultado primário. O ponto marca a variação total.</p>
+  <div class="hud" id="hud2"></div>
+  <svg id="g2" role="img" aria-label="Decomposição da variação anual da dívida bruta"></svg>
+  <div class="legenda"><span><i class="q" style="background:var(--c-juros)"></i>Juros</span><span><i class="q" style="background:var(--c-cresc)"></i>Crescimento do PIB nominal</span><span><i class="q" style="background:var(--c-prim)"></i>Resultado primário</span><span><i class="q" style="background:var(--ink);border-radius:50%"></i>Variação total</span></div>
+</figure>
+
+<section class="notas">
+  <div>
+    <h2>Como funciona</h2>
+    <p>A dívida em proporção do PIB evolui pela equação de acumulação. Juros acima do crescimento do PIB nominal aumentam a razão; o superávit primário a reduz.</p>
+    <div class="eqrow" data-eq="b_t = b_{t-1}\,\frac{1+i_t}{1+\gamma_t} - s_t"></div>
+    <p>Em que b é a dívida bruta em % do PIB, i o custo nominal médio da dívida, γ o crescimento do PIB nominal e s o resultado primário. O primário que estabiliza a dívida em um ano é:</p>
+    <div class="eqrow" data-eq="s^{*}_t = b_{t-1}\,\frac{i_t-\gamma_t}{1+\gamma_t}"></div>
+    <h3>Custo da dívida por indexador</h3>
+    <p>O custo médio pondera quatro grupos pela composição escolhida. A parcela à Selic (títulos pós-fixados e operações compromissadas do Banco Central) paga a Selic do ano. Prefixados e títulos atrelados a índices de preços só passam a pagar as taxas novas à medida que vencem: a cada ano, a fração do estoque que vence em 12 meses é refinanciada à taxa de emissão. A parcela cambial paga o juro externo mais a variação do câmbio.</p>
+    <div class="eqrow" data-eq="p_t = (1-\lambda_{p})\,p_{t-1} + \lambda_{p}\,y^{pre}_t, \qquad c_t = (1-\lambda_{i})\,c_{t-1} + \lambda_{i}\,y^{real}_t"></div>
+    <p id="txtRepac"></p>
+    <h3>Taxas de emissão e prêmio de risco</h3>
+    <p id="txtPremio"></p>
+    <h3>Dívida líquida</h3>
+    <p>A dívida líquida é a bruta menos os ativos do setor público. Os ativos se dividem em reservas internacionais, que rendem juro externo mais variação cambial, e demais créditos líquidos, remunerados à Selic. O resultado primário afeta as duas medidas igualmente.</p>
+    <h3>Caminho dos parâmetros</h3>
+    <p id="txtCaminho"></p>
+  </div>
+  <div>
+    <h2>Validação</h2>
+    <p>Com os parâmetros macroeconômicos do Focus, a dívida bruta simulada fica próxima da mediana do Focus para a própria dívida até 2030 e passa a ficar acima depois. A tabela compara as duas trajetórias no cenário-base.</p>
+    <div class="tab"><table id="tVal"></table></div>
+    <p>Em teste com parâmetros realizados de 2022 a 2025, partindo do estoque observado no fim de cada ano anterior, o erro da dívida bruta em um ano ficou entre +0,6 e +3,6 p.p. (o modelo superestima), e o da dívida líquida entre −1,4 e +2,0 p.p. A diferença na bruta reflete fatores fora da equação, como uso do caixa do Tesouro e devoluções do BNDES.</p>
+  </div>
+  <div>
+    <h2>Limitações</h2>
+    <ul>
+      <li>É uma simulação contábil, não um modelo de equilíbrio. Juros, inflação e câmbio entram como parâmetros, mas na prática respondem ao próprio quadro fiscal e à política monetária: uma Selic mais baixa, por exemplo, pode trazer mais inflação.</li>
+      <li>A dívida bruta usa o resultado primário do setor público consolidado, que inclui estatais e Banco Central.</li>
+      <li>Fatores como privatizações, reconhecimento de passivos, uso do caixa do Tesouro e devoluções de bancos públicos não estão modelados.</li>
+      <li>A composição é mantida constante ao longo do horizonte.</li>
+      <li>Não é uma projeção oficial nem uma previsão.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Fontes</h2>
+    <p class="refb">Banco Central do Brasil. SGS: dívida bruta do governo geral (13762), dívida líquida do setor público (4513), NFSP primário e juros nominais (5793, 5760), PIB em 12 meses (4382), PIB real (7326), Selic (4189), IPCA (433), câmbio (1), reservas internacionais (13621). Focus: expectativas anuais.</p>
+    <p class="refb">Tesouro Nacional. Estoque da Dívida Pública Federal por título e taxas do Tesouro Direto (Tesouro Transparente).</p>
+  </div>
+  <p class="fonte" id="rodape"></p>
+</section>
+</div>
+
+<script>
+// modelo.js — mesma conta de modelo.py, usada pelo dashboard e pelos testes de paridade.
+// Entradas em % (a.a. ou do PIB). Ver README, seção 2.
+(function (root) {
+  const IDX = ["selic", "pre", "ipca", "cambio"];
+
+  // Caminho anual dos parâmetros: 2026 fixo (dados e Focus); de 2027 a 2029 converge
+  // linearmente ao valor de longo prazo, atingido em 2030 e mantido até o fim do horizonte.
+  function convergir(v0, vLP, ano, anoBase, anoLP) {
+    if (ano >= anoLP) return vLP;
+    const k = (ano - anoBase) / (anoLP - anoBase);
+    return v0 + k * (vLP - v0);
+  }
+
+  function caminho(D, P) {
+    const anos = [];
+    for (let a = D.ano_base + 1; a <= D.ano_fim; a++) anos.push(a);
+    const b0 = D.inicio_2026, aLP = D.ano_lp, aB = D.ano_base + 1;
+    return anos.map(a => {
+      const sel = a === aB ? b0.selic : convergir(b0.selic, P.selic, a, aB, aLP);
+      const ip = a === aB ? b0.ipca : convergir(b0.ipca, P.ipca, a, aB, aLP);
+      const g = a === aB ? b0.g : convergir(b0.g, P.g, a, aB, aLP);
+      const dep = a === aB ? b0.dep : convergir(b0.dep, P.dep, a, aB, aLP);
+      const gap = a === aB ? b0.gap_deflator : P.gap_deflator;
+      const prim = a === aB ? b0.prim
+        : P.prim_ini + (P.prim_fim - P.prim_ini) * (a - (aB + 1)) / (D.ano_fim - (aB + 1));
+      const rr = ((1 + sel / 100) / (1 + ip / 100) - 1) * 100;
+      const premio = a === aB ? 0 : P.premio;
+      return {
+        ano: a, selic: sel, ipca: ip, g: g, dep: dep, prim: prim,
+        gama: ((1 + g / 100) * (1 + (ip + gap) / 100) - 1) * 100,
+        y_pre: sel + D.spread_pre + premio,
+        y_real: rr + D.spread_real + premio,
+      };
+    });
+  }
+
+  function simular(D, P) {
+    const ci = D.ci;
+    const comp = P.comp || ci.composicao;
+    let e = { b: ci.dbgg, R: ci.reservas, O: ci.outros_ativos, p: ci.taxa_estoque.pre, c: ci.taxa_estoque.ipca };
+    const lp = ci.vence_12m.pre / 100, li = ci.vence_12m.ipca / 100;
+    return caminho(D, P).map(x => {
+      const pi = x.ipca / 100, dep = x.dep / 100, gm = x.gama / 100;
+      const p = (1 - lp) * e.p + lp * x.y_pre;
+      const c = (1 - li) * e.c + li * x.y_real;
+      const custo = { selic: x.selic / 100, pre: p / 100, ipca: (1 + c / 100) * (1 + pi) - 1,
+                      cambio: (1 + D.f_ext / 100) * (1 + dep) - 1 };
+      let i = 0; IDX.forEach(k => { i += comp[k] / 100 * custo[k]; });
+      const b = e.b * (1 + i) / (1 + gm) - x.prim;
+      const R = e.R * (1 + D.f_res / 100) * (1 + dep) / (1 + gm);
+      const O = e.O * (1 + custo.selic) / (1 + gm);
+      const out = { ...x, i: i * 100, b: b, n: b - R - O,
+        juros: e.b * i / (1 + gm), crescimento: -e.b * gm / (1 + gm), primario: -x.prim,
+        s_estab: e.b * (i - gm) / (1 + gm) };
+      e = { b: b, R: R, O: O, p: p, c: c };
+      return out;
+    });
+  }
+
+  const API = { caminho, simular };
+  if (typeof module !== "undefined") module.exports = API; else root.Modelo = API;
+})(this);
+
+const D = {"gerado":"2026-11-03","focus_data":"2026-10-30","td_data":"2026-10-30","ano_base":2025,"ano_fim":2036,"ano_lp":2030,"ci":{"data":"2025-12","dbgg":78.64,"dlsp":65.24,"composicao":{"selic":55.51753321905092,"pre":19.006566606021103,"ipca":22.271399228100485,"cambio":3.2045009468274994},"vence_12m":{"pre":29.362909555921146,"ipca":11.232700805690506,"cambio":3.78461585827954},"taxa_estoque":{"pre":12.183265577221885,"ipca":5.799567628776484},"reservas":15.473851793800081,"outros_ativos":-2.073851793800076,"dpf_mercado_pct":67.78701384207017,"resto_selic_pct":10.852986157929823,"vna_ntnb":4585.228694343038},"inicio_2026":{"selic":14.204166666666667,"ipca":5.2166,"g":1.7607,"dep":-2.900552486187835,"prim":-0.49,"gap_deflator":1.1607469916281659},"padrao":{"selic":10.0,"ipca":3.815,"g":2.0,"dep":0.92,"gap_deflator":1.16,"prim_ini":-0.4,"prim_fim":0.8,"premio":0.0,"comp":{"selic":55.5,"pre":19.0,"ipca":22.3,"cambio":3.2}},"spread_pre":1.105833333333333,"spread_real":-0.5652997784253309,"y_pre_hoje":15.31,"y_real_hoje":7.976666666666667,"f_ext":5.0,"f_res":4.0,"gap_janela":[2010,2025],"historico":{"dbgg":{"2008":55.98,"2009":59.21,"2010":51.77,"2011":51.27,"2012":53.67,"2013":51.54,"2014":56.28,"2015":65.5,"2016":69.84,"2017":73.72,"2018":75.27,"2019":74.44,"2020":86.94,"2021":77.31,"2022":71.68,"2023":73.83,"2024":76.27,"2025":78.64},"dlsp":{"2008":37.57,"2009":40.88,"2010":37.98,"2011":34.47,"2012":32.19,"2013":30.5,"2014":32.59,"2015":35.64,"2016":46.14,"2017":51.37,"2018":52.77,"2019":54.7,"2020":61.37,"2021":55.11,"2022":56.13,"2023":60.43,"2024":61.3,"2025":65.24},"ultimo":{"mes":"2026-09","dbgg":82.93,"dlsp":69.98}},"focus_divida":{"dbgg":{"2026":83.5,"2027":87.4,"2028":90.5,"2029":93.1614,"2030":95.5001,"2031":96.9294,"2032":98.556,"2033":99.9399,"2034":100.3,"2035":101.6729},"dlsp":{"2026":70.2,"2027":74.2,"2028":77.2,"2029":79.6911,"2030":82.2004,"2031":83.834,"2032":85.0,"2033":86.3,"2034":87.2,"2035":89.05}}};
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 1) => v == null || isNaN(v) ? "—" : v.toLocaleString("pt-BR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = (v, d = 1) => fmt(v, d) + "%";
+const sinal = (v, d = 1) => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt(Math.abs(v), d);
+
+const PAR = [
+  {sec: "Juros"},
+  {k: "selic", lab: "Selic média de longo prazo", min: 4, max: 16, step: 0.25, un: "% a.a.", aj: `Atingida em ${D.ano_lp}.`},
+  {k: "premio", lab: "Prêmio de risco nas novas emissões", min: -3, max: 5, step: 0.25, un: "p.p.", aj: "Soma às taxas de emissão de prefixados e IPCA+."},
+  {sec: "Inflação, crescimento e câmbio"},
+  {k: "ipca", lab: "IPCA de longo prazo", min: 2, max: 8, step: 0.1, un: "%", aj: `Atingido em ${D.ano_lp}.`},
+  {k: "g", lab: "Crescimento real do PIB", min: -1, max: 5, step: 0.1, un: "%", aj: `Atingido em ${D.ano_lp}.`},
+  {k: "gap_deflator", lab: "Deflator do PIB acima do IPCA", min: -1, max: 3, step: 0.1, un: "p.p.", aj: `Padrão: média de ${D.gap_janela[0]} a ${D.gap_janela[1]}.`},
+  {k: "dep", lab: "Depreciação cambial", min: -5, max: 10, step: 0.5, un: "% a.a.", aj: "Positivo: real perde valor."},
+  {sec: "Resultado primário"},
+  {k: "prim_ini", lab: `Primário em ${D.ano_base + 2}`, min: -3, max: 4, step: 0.1, un: "% PIB", aj: "Superávit positivo."},
+  {k: "prim_fim", lab: `Primário em ${D.ano_fim}`, min: -3, max: 5, step: 0.1, un: "% PIB", aj: "Caminho linear entre os dois anos."},
+  {sec: "Composição da dívida bruta"},
+  {nota: "As parcelas somam 100%. Ao mover uma, as demais se ajustam na mesma proporção."},
+  {k: "c_selic", lab: "Atrelada à Selic", min: 0, max: 100, step: 0.5, un: "%"},
+  {k: "c_pre", lab: "Prefixada", min: 0, max: 100, step: 0.5, un: "%"},
+  {k: "c_ipca", lab: "Atrelada a índices de preços", min: 0, max: 100, step: 0.5, un: "%"},
+  {k: "c_cambio", lab: "Atrelada ao câmbio", min: 0, max: 100, step: 0.5, un: "%"},
+  {barra: true},
+];
+
+const base = () => ({...D.padrao, c_selic: D.padrao.comp.selic, c_pre: D.padrao.comp.pre, c_ipca: D.padrao.comp.ipca, c_cambio: D.padrao.comp.cambio});
+const CEN = {
+  focus: {lab: "Focus", f: () => base()},
+  juros: {lab: "Juros mais baixos", f: () => ({...base(), selic: 8.0, premio: -1.0})},
+  ajuste: {lab: "Ajuste fiscal", f: () => ({...base(), prim_ini: 0.5, prim_fim: 2.5})},
+  risco: {lab: "Risco fiscal maior", f: () => ({...base(), premio: 2.0, dep: 4.0, selic: 12.0})},
+};
+let P = base(), IND = "dbgg", CENA = "focus";
+
+function seg(id, opts, get, set) {
+  const el = $(id); el.innerHTML = "";
+  opts.forEach(([v, lab]) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = lab;
+    b.setAttribute("aria-pressed", String(get() === v));
+    b.onclick = () => { set(v); [...el.children].forEach(c => c.setAttribute("aria-pressed", String(c === b))); render(); };
+    el.appendChild(b);
+  });
+}
+
+function montarParams() {
+  const el = $("params"); el.innerHTML = "";
+  PAR.forEach(p => {
+    if (p.sec) { const h = document.createElement("p"); h.className = "secao"; h.textContent = p.sec; el.appendChild(h); return; }
+    if (p.nota) { const h = document.createElement("p"); h.className = "nota"; h.textContent = p.nota; el.appendChild(h); return; }
+    if (p.barra) { const h = document.createElement("div"); h.className = "compbar"; h.id = "compbar"; h.setAttribute("aria-hidden", "true");
+      h.innerHTML = COMP.map(([k]) => `<span id="cb_${k}"></span>`).join(""); el.appendChild(h); return; }
+    const d = document.createElement("div"); d.className = "param";
+    const cor = (COMP.find(c => c[0] === p.k) || [])[1];
+    d.innerHTML = `<label for="p_${p.k}"><span>${cor ? `<i class="sw" style="background:${cor}"></i>` : ""}${p.lab}</span><b id="o_${p.k}"></b></label>
+      <input type="range" id="p_${p.k}" min="${p.min}" max="${p.max}" step="${p.step}">${p.aj ? `<small>${p.aj}</small>` : ""}`;
+    el.appendChild(d);
+    const inp = d.querySelector("input");
+    inp.oninput = () => { if (p.k.startsWith("c_")) balancear(p.k, +inp.value); else P[p.k] = +inp.value; CENA = null; [...$("cCen").children].forEach(c => c.setAttribute("aria-pressed", "false")); render(); };
+  });
+}
+function syncParams() {
+  PAR.forEach(p => { if (!p.k) return; $("p_" + p.k).value = P[p.k];
+    $("o_" + p.k).textContent = fmt(P[p.k], p.step === 0.25 ? 2 : 1) + " " + p.un; });
+  COMP.forEach(([k, cor]) => { const e = $("cb_" + k); e.style.width = P[k] + "%"; e.style.background = cor; });
+}
+
+const COMP = [["c_selic", "var(--ink)"], ["c_pre", "var(--c-cresc)"], ["c_ipca", "var(--c-prim)"], ["c_cambio", "var(--ref)"]];
+// Mantém a soma em 100: a parcela movida assume o novo valor e as demais dividem o restante
+// na proporção que tinham entre si (ou igualmente, se todas estavam zeradas).
+function balancear(k, v) {
+  const outros = COMP.map(c => c[0]).filter(x => x !== k);
+  const soma = outros.reduce((a, x) => a + P[x], 0), resto = 100 - v;
+  outros.forEach(x => { P[x] = soma > 1e-9 ? P[x] * resto / soma : resto / outros.length; });
+  P[k] = v;
+}
+function compAtual() { return {selic: P.c_selic, pre: P.c_pre, ipca: P.c_ipca, cambio: P.c_cambio}; }
+
+function rodar() { return Modelo.simular(D, {...P, comp: compAtual()}); }
+
+function serieObs() {
+  const h = D.historico[IND];
+  return Object.keys(h).map(a => [+a, h[a]]).filter(([a]) => a <= D.ano_base);
+}
+
+function leitura(sim) {
+  const k = IND === "dbgg" ? "b" : "n", ult = sim[sim.length - 1];
+  const v0 = IND === "dbgg" ? D.ci.dbgg : D.ci.dlsp, d = ult[k] - v0;
+  const nome = IND === "dbgg" ? "Dívida bruta" : "Dívida líquida";
+  $("refcen").textContent = (CENA ? "Cenário " + CEN[CENA].lab : "Cenário personalizado") + ` · ${D.ano_base + 1} a ${D.ano_fim}`;
+  $("l1").textContent = `${nome} em ${ult.ano}`;
+  $("v1").textContent = pct(ult[k]) + " do PIB";
+  $("d1").textContent = `${sinal(d)} p.p. em relação a ${D.ano_base} (${pct(v0)})`;
+  $("c1").className = "card" + (d < 0 ? " fo" : "");
+  const med = sim.slice(1).reduce((a, x) => a + x.prim, 0) / (sim.length - 1);
+  $("l2").textContent = `Primário que estabilizaria a dívida bruta em ${ult.ano}`;
+  $("v2").textContent = pct(ult.s_estab) + " do PIB";
+  $("d2").textContent = `Primário do cenário em ${ult.ano}: ${pct(ult.prim)} · custo médio da dívida ${pct(ult.i)} · PIB nominal ${pct(ult.gama)}`;
+}
+
+function eixoY(lo, hi) {
+  const span = hi - lo, step = span > 60 ? 20 : span > 30 ? 10 : span > 12 ? 5 : span > 5 ? 2 : 1;
+  return {lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step};
+}
+
+function grafico1(sim) {
+  const svg = $("g1"), W = Math.max(320, svg.parentNode.clientWidth), H = Math.round(Math.min(380, Math.max(240, W * 0.42)));
+  const m = {l: 36, r: 58, t: 12, b: 28}, ns = "http://www.w3.org/2000/svg";
+  const k = IND === "dbgg" ? "b" : "n";
+  const obs = serieObs(), proj = [[D.ano_base, IND === "dbgg" ? D.ci.dbgg : D.ci.dlsp], ...sim.map(x => [x.ano, x[k]])];
+  const fo = Object.entries(D.focus_divida[IND]).map(([a, v]) => [+a, v]).filter(([a]) => a <= D.ano_fim);
+  const foc = fo.length ? [[D.ano_base, proj[0][1]], ...fo] : [];
+  const all = [...obs, ...proj, ...foc], a0 = obs[0][0], a1 = D.ano_fim;
+  const Y = eixoY(Math.min(...all.map(p => p[1])) - 3, Math.max(...all.map(p => p[1])) + 3);
+  const x = a => m.l + (a - a0) / (a1 - a0) * (W - m.l - m.r), y = v => m.t + (Y.hi - v) / (Y.hi - Y.lo) * (H - m.t - m.b);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = "";
+  const add = (t, at, tx) => { const e = document.createElementNS(ns, t); for (const q in at) e.setAttribute(q, at[q]); if (tx != null) e.textContent = tx; svg.appendChild(e); return e; };
+  for (let v = Y.lo; v <= Y.hi + 1e-9; v += Y.step) { add("line", {x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: "grade"}); add("text", {x: m.l - 6, y: y(v) + 4, "text-anchor": "end", class: "eixo"}, fmt(v, 0)); }
+  const passo = W < 560 ? 4 : 2;
+  for (let a = a0; a <= a1; a++) if ((a - a0) % passo === 0 || a === a1) add("text", {x: x(a), y: H - 8, "text-anchor": "middle", class: "eixo"}, a);
+  add("rect", {x: x(D.ano_base), y: m.t, width: x(a1) - x(D.ano_base), height: H - m.t - m.b, fill: "var(--mark)", opacity: .55});
+  const linha = (pts, cor, w, dash) => add("path", {d: pts.map((p, i) => (i ? "L" : "M") + x(p[0]).toFixed(1) + "," + y(p[1]).toFixed(1)).join(""), fill: "none", stroke: cor, "stroke-width": w, "stroke-dasharray": dash || "none", "stroke-linejoin": "round"});
+  if (foc.length) linha(foc, "var(--ref)", 1.6, "5 4");
+  linha(obs, "var(--ink)", 2.2); linha(proj, "var(--proj)", 2.4);
+  const labs = [[proj[proj.length - 1], "var(--proj)"]];
+  if (foc.length) labs.push([foc[foc.length - 1], "var(--ref)"]);
+  labs.sort((p, q) => y(p[0][1]) - y(q[0][1])); let last = -99;
+  labs.forEach(([p, cor]) => { let yy = y(p[1]); if (yy - last < 14) yy = last + 14; last = yy;
+    add("circle", {cx: x(p[0]), cy: y(p[1]), r: 3.2, fill: cor, stroke: "none"});
+    add("text", {x: x(p[0]) + 7, y: yy + 4, class: "endlab", fill: cor}, fmt(p[1], 1)); });
+  const cross = add("line", {y1: m.t, y2: H - m.b, stroke: "var(--ink)", "stroke-width": .9, "stroke-dasharray": "2 3", opacity: 0});
+  const hud = $("hud1"), mapa = {};
+  obs.forEach(([a, v]) => mapa[a] = {o: v}); proj.forEach(([a, v]) => (mapa[a] = mapa[a] || {}, mapa[a].s = v)); foc.forEach(([a, v]) => (mapa[a] = mapa[a] || {}, mapa[a].f = v));
+  const show = a => { const q = mapa[a] || {}; cross.setAttribute("x1", x(a)); cross.setAttribute("x2", x(a)); cross.setAttribute("opacity", 1);
+    hud.innerHTML = `<b>${a}</b>` + (q.o != null ? `<span>Observado <b>${pct(q.o)}</b></span>` : "") + (q.s != null && a > D.ano_base ? `<span>Simulado <b style="color:var(--proj)">${pct(q.s)}</b></span>` : "") + (q.f != null && a > D.ano_base ? `<span>Focus <b>${pct(q.f)}</b></span>` : ""); };
+  show(a1);
+  svg.onpointermove = e => { const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * W; const a = Math.round(a0 + (px - m.l) / (W - m.l - m.r) * (a1 - a0)); if (a >= a0 && a <= a1) show(a); };
+  svg.onpointerleave = () => { cross.setAttribute("opacity", 0); show(a1); };
+}
+
+function grafico2(sim) {
+  const svg = $("g2"), W = Math.max(320, svg.parentNode.clientWidth), H = Math.round(Math.min(300, Math.max(200, W * 0.32)));
+  const m = {l: 36, r: 16, t: 12, b: 28}, ns = "http://www.w3.org/2000/svg";
+  let lo = 0, hi = 0;
+  sim.forEach(s => { const pos = [s.juros, s.crescimento, s.primario].filter(v => v > 0).reduce((a, b) => a + b, 0), neg = [s.juros, s.crescimento, s.primario].filter(v => v < 0).reduce((a, b) => a + b, 0); hi = Math.max(hi, pos); lo = Math.min(lo, neg); });
+  const Y = eixoY(lo - 0.5, hi + 0.5), n = sim.length, bw = (W - m.l - m.r) / n;
+  const x = i => m.l + i * bw + bw / 2, y = v => m.t + (Y.hi - v) / (Y.hi - Y.lo) * (H - m.t - m.b);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.innerHTML = "";
+  const add = (t, at, tx) => { const e = document.createElementNS(ns, t); for (const q in at) e.setAttribute(q, at[q]); if (tx != null) e.textContent = tx; svg.appendChild(e); return e; };
+  for (let v = Y.lo; v <= Y.hi + 1e-9; v += Y.step) { add("line", {x1: m.l, x2: W - m.r, y1: y(v), y2: y(v), class: v === 0 ? "" : "grade", stroke: v === 0 ? "var(--muted)" : null}); add("text", {x: m.l - 6, y: y(v) + 4, "text-anchor": "end", class: "eixo"}, fmt(v, 0)); }
+  sim.forEach((s, i) => {
+    let up = 0, dn = 0; const w = Math.max(6, bw * 0.56);
+    [["juros", "var(--c-juros)"], ["crescimento", "var(--c-cresc)"], ["primario", "var(--c-prim)"]].forEach(([k, cor]) => {
+      const v = s[k]; if (!v) return;
+      const a = v > 0 ? up : dn, b = a + v; if (v > 0) up = b; else dn = b;
+      add("rect", {x: x(i) - w / 2, y: y(Math.max(a, b)), width: w, height: Math.abs(y(a) - y(b)), fill: cor});
+    });
+    add("circle", {cx: x(i), cy: y(s.juros + s.crescimento + s.primario), r: 3.6, fill: "var(--ink)", stroke: "var(--bg)", "stroke-width": 1.5});
+    if (W >= 560 || i % 2 === 0 || i === n - 1) add("text", {x: x(i), y: H - 8, "text-anchor": "middle", class: "eixo"}, s.ano);
+  });
+  const hud = $("hud2");
+  const show = i => { const s = sim[i]; hud.innerHTML = `<b>${s.ano}</b><span>Juros <b>${sinal(s.juros)}</b></span><span>Crescimento <b>${sinal(s.crescimento)}</b></span><span>Primário <b>${sinal(s.primario)}</b></span><span>Total <b>${sinal(s.juros + s.crescimento + s.primario)} p.p.</b></span>`; };
+  show(n - 1);
+  svg.onpointermove = e => { const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) / r.width * W; const i = Math.floor((px - m.l) / bw); if (i >= 0 && i < n) show(i); };
+  svg.onpointerleave = () => show(n - 1);
+}
+
+function render() {
+  syncParams();
+  const sim = rodar();
+  $("t1").textContent = (IND === "dbgg" ? "Dívida bruta do governo geral" : "Dívida líquida do setor público") + " (% do PIB)";
+  leitura(sim); grafico1(sim); grafico2(sim);
+}
+
+function textos() {
+  const ci = D.ci, c = ci.composicao, l = ci.vence_12m;
+  $("txtRepac").textContent = `No fim de ${D.ano_base}, a dívida bruta era ${pct(c.selic)} atrelada à Selic, ${pct(c.pre)} prefixada, ${pct(c.ipca)} atrelada a índices de preços e ${pct(c.cambio)} ao câmbio. Venciam em 12 meses ${pct(l.pre, 0)} dos prefixados e ${pct(l.ipca, 0)} dos títulos atrelados a índices de preços. A taxa média do estoque, inferida do valor contábil de cada título, era ${pct(ci.taxa_estoque.pre)} nos prefixados e IPCA + ${pct(ci.taxa_estoque.ipca)} nos atrelados a índices de preços.`;
+  $("txtPremio").textContent = `A taxa de emissão de prefixados acompanha a Selic do ano mais um prêmio calibrado nas taxas do Tesouro Direto em ${D.td_data.split("-").reverse().join("/")} (prefixados de 2 a 10 anos: ${pct(D.y_pre_hoje, 2)}; IPCA+: ${pct(D.y_real_hoje, 2)}). O controle de prêmio de risco desloca as duas taxas a partir de ${D.ano_base + 2}, representando uma piora ou melhora da percepção de risco fiscal.`;
+  $("txtCaminho").textContent = `${D.ano_base + 1} usa dados realizados e as medianas do Focus de ${D.focus_data.split("-").reverse().join("/")}. De ${D.ano_base + 2} a ${D.ano_lp - 1}, Selic, IPCA, crescimento e câmbio convergem linearmente para os valores de longo prazo escolhidos, que valem de ${D.ano_lp} a ${D.ano_fim}. O cenário Focus usa as medianas de ${D.ano_lp} como valores de longo prazo. O primário segue uma reta entre os valores escolhidos para ${D.ano_base + 2} e ${D.ano_fim}.`;
+  const sim = Modelo.simular(D, D.padrao), fo = D.focus_divida.dbgg;
+  let h = "<thead><tr><th>Ano</th>" + sim.map(s => `<th>${s.ano}</th>`).join("") + "</tr></thead><tbody>";
+  h += "<tr><td>Simulado</td>" + sim.map(s => `<td>${fmt(s.b)}</td>`).join("") + "</tr>";
+  h += "<tr><td>Focus</td>" + sim.map(s => `<td>${fo[s.ano] != null ? fmt(fo[s.ano]) : "—"}</td>`).join("") + "</tr></tbody>";
+  $("tVal").innerHTML = h;
+}
+
+function init() {
+  seg("cInd", [["dbgg", "Dívida bruta"], ["dlsp", "Dívida líquida"]], () => IND, v => IND = v);
+  seg("cCen", Object.entries(CEN).map(([k, c]) => [k, c.lab]), () => CENA, v => { CENA = v; P = CEN[v].f(); });
+  montarParams(); textos();
+  $("atualizado").textContent = "Atualizado em " + D.gerado.split("-").reverse().join("/");
+  $("rodape").textContent = `Fontes: Banco Central do Brasil (SGS e Focus) e Tesouro Nacional. Cálculos do autor. Ano-base ${D.ano_base}; último dado observado da dívida: ${D.historico.ultimo.mes.split("-").reverse().join("/")} (bruta ${pct(D.historico.ultimo.dbgg)}, líquida ${pct(D.historico.ultimo.dlsp)}).`;
+  render();
+  let t; addEventListener("resize", () => { clearTimeout(t); t = setTimeout(render, 120); });
+  const eq = () => { if (!window.katex) return setTimeout(eq, 150);
+    document.querySelectorAll("[data-eq]").forEach(el => katex.render(el.dataset.eq, el, {displayMode: true, throwOnError: false, output: "mathml"})); };
+  eq();
+}
+init();
+</script>
